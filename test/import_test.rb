@@ -19,6 +19,16 @@ describe "#import" do
     end
   end
 
+  describe "with non-default ActiveRecord models" do  
+    context "that have a non-standard primary key (that is no sequence)" do
+      it "should import models successfully" do
+        assert_difference "Widget.count", +3 do
+          Widget.import Build(3, :widgets)
+        end
+      end
+    end
+  end
+
   context "with :validation option" do
     let(:columns) { %w(title author_name) }
     let(:valid_values) { [[ "LDAP", "Jerry Carter"], ["Rails Recipes", "Chad Fowler"]] }
@@ -34,6 +44,12 @@ describe "#import" do
       it "should import invalid data" do
         assert_difference "Topic.count", +2 do
           result = Topic.import columns, invalid_values, :validate => false
+        end
+      end
+
+      it 'should raise a specific error if a column does not exist' do
+        assert_raises ActiveRecord::Import::MissingColumnError do
+          Topic.import ['foo'], [['bar']], :validate => false
         end
       end
     end
@@ -65,7 +81,45 @@ describe "#import" do
       end
     end
   end
-  
+
+  context "with :all_or_none option" do
+    let(:columns) { %w(title author_name) }
+    let(:valid_values) { [[ "LDAP", "Jerry Carter"], ["Rails Recipes", "Chad Fowler"]] }
+    let(:invalid_values) { [[ "The RSpec Book", ""], ["Agile+UX", ""]] }
+    let(:mixed_values) { valid_values + invalid_values }
+
+    context "with validation checks turned on" do
+      it "should import valid data" do
+        assert_difference "Topic.count", +2 do
+          result = Topic.import columns, valid_values, :all_or_none => true
+        end
+      end
+
+      it "should not import invalid data" do
+        assert_no_difference "Topic.count" do
+          result = Topic.import columns, invalid_values, :all_or_none => true
+        end
+      end
+
+      it "should not import valid data when mixed with invalid data" do
+        assert_no_difference "Topic.count" do
+          result = Topic.import columns, mixed_values, :all_or_none => true
+        end
+      end
+
+      it "should report the failed instances" do
+        results = Topic.import columns, mixed_values, :all_or_none => true
+        assert_equal invalid_values.size, results.failed_instances.size
+        results.failed_instances.each { |e| assert_kind_of Topic, e }
+      end
+
+      it "should report the zero inserts" do
+        results = Topic.import columns, mixed_values, :all_or_none => true
+        assert_equal 0, results.num_inserts
+      end
+    end
+  end
+
   context "with :synchronize option" do
     context "synchronizing on new records" do
       let(:new_topics) { Build(3, :topics) }
@@ -80,8 +134,18 @@ describe "#import" do
       let(:new_topics) { Build(3, :topics) }
 
       it "reloads data for existing in-memory instances" do
-        Topic.import(new_topics, :synchronize => new_topics, :synchronize_key => [:title] )
-        assert new_topics.all?(&:new_record?), "Records should have been reloaded"
+        Topic.import(new_topics, :synchronize => new_topics, :synchronize_keys => [:title] )
+        assert new_topics.all?(&:persisted?), "Records should have been reloaded"
+      end      
+    end
+
+    context "synchronizing on destroyed records with explicit conditions" do
+      let(:new_topics) { Generate(3, :topics) }
+
+      it "reloads data for existing in-memory instances" do
+        new_topics.each &:destroy
+        Topic.import(new_topics, :synchronize => new_topics, :synchronize_keys => [:title] )
+        assert new_topics.all?(&:persisted?), "Records should have been reloaded"
       end      
     end
   end
@@ -239,4 +303,47 @@ describe "#import" do
       assert_equal "2010/05/14".to_date, Topic.last.last_read.to_date
     end
   end
+
+  context "importing through an association scope" do
+    [ true, false ].each do |b|
+      context "when validation is " + (b ? "enabled" : "disabled") do
+        it "should automatically set the foreign key column" do
+          books = [[ "David Chelimsky", "The RSpec Book" ], [ "Chad Fowler", "Rails Recipes" ]]
+          topic = Factory.create :topic
+          topic.books.import [ :author_name, :title ], books, :validate => b
+          assert_equal 2, topic.books.count
+          assert topic.books.all? { |b| b.topic_id == topic.id }
+        end
+      end
+    end
+  end
+
+  describe "importing when model has default_scope" do
+    it "doesn't import the default scope values" do
+      assert_difference "Widget.unscoped.count", +2 do
+        Widget.import [:w_id], [[1], [2]]
+      end
+      default_scope_value = Widget.scope_attributes[:active]
+      assert_not_equal default_scope_value, Widget.unscoped.find_by_w_id(1)
+      assert_not_equal default_scope_value, Widget.unscoped.find_by_w_id(2)
+    end
+
+    it "imports columns that are a part of the default scope using the value specified" do
+      assert_difference "Widget.unscoped.count", +2 do
+        Widget.import [:w_id, :active], [[1, true], [2, false]]
+      end
+      assert_not_equal true, Widget.unscoped.find_by_w_id(1)
+      assert_not_equal false, Widget.unscoped.find_by_w_id(2)
+    end
+  end
+
+  describe "importing serialized fields" do
+    it "imports values for serialized fields" do
+      assert_difference "Widget.unscoped.count", +1 do
+        Widget.import [:w_id, :data], [[1, {:a => :b}]]
+      end
+      assert_equal({:a => :b}, Widget.find_by_w_id(1).data)
+    end
+  end
+
 end
