@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = "activerecord-import"
-  s.version = "0.2.10"
+  s.version = "0.3.1"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Zach Dennis"]
-  s.date = "2012-08-30"
+  s.date = "2013-06-13"
   s.description = "Extraction of the ActiveRecord::Base#import functionality from ar-extensions for Rails 3 and beyond"
   s.email = "zach.dennis@gmail.com"
   s.extra_rdoc_files = [
@@ -24,11 +24,14 @@ Gem::Specification.new do |s|
     "lib/activerecord-import/active_record/adapters/jdbcmysql_adapter.rb",
     "lib/activerecord-import/active_record/adapters/mysql2_adapter.rb",
     "lib/activerecord-import/active_record/adapters/mysql_adapter.rb",
+    "lib/activerecord-import/active_record/adapters/oracle_enhanced_adapter.rb",
     "lib/activerecord-import/active_record/adapters/postgresql_adapter.rb",
     "lib/activerecord-import/active_record/adapters/seamless_database_pool_adapter.rb",
     "lib/activerecord-import/active_record/adapters/sqlite3_adapter.rb",
     "lib/activerecord-import/adapters/abstract_adapter.rb",
+    "lib/activerecord-import/adapters/mysql2_adapter.rb",
     "lib/activerecord-import/adapters/mysql_adapter.rb",
+    "lib/activerecord-import/adapters/oracle_enhanced_adapter.rb",
     "lib/activerecord-import/adapters/postgresql_adapter.rb",
     "lib/activerecord-import/adapters/sqlite3_adapter.rb",
     "lib/activerecord-import/base.rb",
@@ -41,7 +44,7 @@ Gem::Specification.new do |s|
   ]
   s.homepage = "http://github.com/zdennis/activerecord-import"
   s.require_paths = ["lib"]
-  s.rubygems_version = "1.8.24"
+  s.rubygems_version = "1.8.23"
   s.summary = "Bulk-loading extension for ActiveRecord"
 
   if s.respond_to? :specification_version then
@@ -65,3 +68,4 @@ Gem::Specification.new do |s|
     s.add_dependency(%q<activerecord>, ["~> 3.0"])
   end
 end
+
